@@ -21,7 +21,7 @@ class Scores:
         self.first_time_thru = 1
         self.old_game_stats = []
         self.new_game_stats = []
-        self.wait = 30
+        self.wait = 3
         self.display_seconds = 5
         self.display_milliseconds = 5000
         self.dialog = xbmcgui.Dialog()
@@ -61,11 +61,11 @@ class Scores:
     def get_new_stats(self, game):
         video_playing = self.get_video_playing()
 
-        gid = str(game['gamePk'])
+        gid = game['gamePk']
         ateam = game['teams']['away']['team']['abbreviation']
         hteam = game['teams']['home']['team']['abbreviation']
-        ascore = str(game['linescore']['teams']['away']['goals'])
-        hscore = str(game['linescore']['teams']['home']['goals'])
+        ascore = game['linescore']['teams']['away']['goals']
+        hscore = game['linescore']['teams']['home']['goals']
 
         # Team names (these can be found in the live streams url)
         atcommon = game['teams']['away']['team']['abbreviation']
@@ -96,7 +96,16 @@ class Scores:
         # Disable spoiler by not showing score notifications for the game the user is currently watching
         if video_playing.find(atcommon.lower()) == -1 and video_playing.find(htcommon.lower()) == -1:
             if self.addon.getSetting(id="goal_desc") == 'false' or self.addon.getSetting(id="goal_desc") == 'true' and desc.lower() != 'goal':
-                self.new_game_stats.append([gid, ateam, hteam, ascore, hscore, gameclock, current_period, desc, headshot])
+                self.new_game_stats.append(
+                    {"game_id": gid,
+                     "away_name": ateam,
+                     "home_name": hteam,
+                     "away_score": ascore,
+                     "home_score": hscore,
+                     "game_clock": gameclock,
+                     "period": current_period,
+                     "goal_desc": desc,
+                     "headshot": headshot})
 
     def set_display_ms(self):
         display_seconds = int(self.addon.getSetting(id="display_seconds"))
@@ -110,76 +119,79 @@ class Scores:
         # Convert to milliseconds
         self.display_milliseconds = display_seconds * 1000
 
-    def check_if_changed(self, new_item, old_item):
-        # --------------------------
-        # Array key
-        # --------------------------
-        # 0 = game id
-        # 1 = away team
-        # 2 = home team
-        # 3 = away score
-        # 4 = home score
-        # 5 = game clock
-        # 6 = current period
-        # 7 = goal description
-        # 8 = headshot img url
-        # --------------------------
+    def final_score_message(self, new_item):
+        # Highlight score of the winning team
+        title = 'Final Score'
+        game_clock = '[COLOR=%s]%s[/COLOR]' % (self.gametime_color, new_item['game_clock'])
+        if new_item['away_score'] > new_item['home_score']:
+            away_score = '[COLOR=%s]%s %s[/COLOR]' % (self.score_color, new_item['away_name'], new_item['away_score'])
+            home_score = '%s %s' % (new_item['home_name'], new_item['home_score'])
+        else:
+            away_score = '%s %s' % (new_item['away_name'], new_item['away_score'])
+            home_score = '[COLOR=%s]%s %s[/COLOR]' % (self.score_color, new_item['home_name'], new_item['home_score'])
 
+        message = '%s    %s    %s' % (away_score, home_score, game_clock)
+        return title, message
+
+    def period_change_message(self, new_item):
+        # Notify user that the game has started / period has changed
+        title = "Game Update"
+
+        message = '%s %s    %s %s   [COLOR=%s]%s has started[/COLOR]' % \
+                  (new_item['away_name'], new_item['away_score'], new_item['home_name'], new_item['home_score'],
+                   self.gametime_color, new_item['period'])
+        return title, message
+
+    def goal_scored_message(self, new_item):
+        # Highlight score for the team that just scored a goal
+        away_score = '%s %s' % (new_item['away_name'], new_item['away_score'])
+        home_score = '%s %s' % (new_item['home_name'], new_item['home_score'])
+        game_clock = '[COLOR=%s]%s[/COLOR]' % (self.gametime_color, new_item['game_clock'])
+
+        if new_item['away_score'] != new_item['away_score']:
+            away_score = '[COLOR=%s]%s[/COLOR]' % (self.score_color, away_score)
+        if new_item['home_score'] != new_item['home_score']:
+            home_score = '[COLOR=%s]%s[/COLOR]' % (self.score_color, home_score)
+
+        if self.addon.getSetting(id="goal_desc") == 'false':
+            title = 'Score Update'
+            message = '%s    %s    %s' % (away_score, home_score, game_clock)
+        else:
+            title = '%s    %s    %s' % (away_score, home_score, game_clock)
+            message = new_item['goal_desc']
+
+        return title, message
+
+    def check_if_changed(self, new_item, old_item):
         # If the score for either team has changed and is greater than zero.
         # Or if the game has just ended show the final score
         # Or the current period has changed
-        if ((new_item[3] != old_item[8]) or (new_item[4] != old_item[4])) or (new_item[5].upper().find('FINAL') != -1 and old_item[5].upper().find('FINAL') == -1) or (new_item[6] != old_item[6]):
-            # Game variables
-            ateam = new_item[1]
-            hteam = new_item[2]
-            ascore = new_item[3]
-            hscore = new_item[4]
-            gameclock = new_item[5]
-            current_period = new_item[6]
-            desc = new_item[7]
-            headshot = new_item[8]
+        # if ((new_item[3] != old_item[8]) or (new_item[4] != old_item[4])) or (new_item[5].upper().find('FINAL') != -1 and old_item[5].upper().find('FINAL') == -1) or (new_item[6] != old_item[6]):
 
-            notify_mode = ''
-            if new_item[5].upper().find('FINAL') != -1:
-                # Highlight score of the winning team
-                notify_mode = 'final'
-                title = 'Final Score'
-                if int(ascore) > int(hscore):
-                    message = '[COLOR=' + self.score_color + ']' + ateam + ' ' + ascore + '[/COLOR]    ' + hteam + ' ' + hscore + '    [COLOR=' + self.gametime_color + ']' + gameclock + '[/COLOR]'
-                else:
-                    message = ateam + ' ' + ascore + '    [COLOR=' + self.score_color + ']' + hteam + ' ' + hscore + '[/COLOR]    [COLOR=' + self.gametime_color + ']' + gameclock + '[/COLOR]'
+        notify_mode = ''
+        if 'FINAL' in new_item['game_clock'].upper():
+            notify_mode = 'final'
+            title, message = self.final_score_message(new_item)
+        elif new_item['period'] != old_item['period']:
+            # Notify user that the game has started / period has changed
+            notify_mode = 'game'
+            title, message = self.period_change_message(new_item)
+        else:
+            # Highlight score for the team that just scored a goal
+            notify_mode = 'score'
+            title, message = self.goal_scored_message(new_item)
 
-            elif new_item[6] != old_item[6]:
-                # Notify user that the game has started / period has changed
-                notify_mode = 'game'
-                title = "Game Update"
-                message = ateam + ' ' + ascore + '    ' + hteam + ' ' + hscore + '   [COLOR=' + self.gametime_color + ']' + current_period + ' has started[/COLOR]'
-
-            else:
-                # Highlight score for the team that just scored a goal
-                notify_mode = 'score'
-                if new_item[3] != old_item[3]:
-                    ascore = '[COLOR=' + self.score_color + ']' + new_item[3] + '[/COLOR]'
-                if new_item[4] != old_item[4]:
-                    hscore = '[COLOR=' + self.score_color + ']' + new_item[4] + '[/COLOR]'
-
-                if self.addon.getSetting(id="goal_desc") == 'false':
-                    title = 'Score Update'
-                    message = ateam + ' ' + ascore + '    ' + hteam + ' ' + hscore + '    [COLOR=' + self.gametime_color + ']' + gameclock + '[/COLOR]'
-                else:
-                    title = ateam + ' ' + ascore + '    ' + hteam + ' ' + hscore + '    [COLOR=' + self.gametime_color + ']' + gameclock + '[/COLOR]'
-                    message = desc
-
-            if self.scoring_updates_on():
-                img = self.nhl_logo
-                # Get goal scorers head shot if notification is a score update
-                if self.addon.getSetting(id="goal_desc") == 'true' and notify_mode == 'score' and headshot != '':
-                    img = headshot
-                self.dialog.notification(title, message, img, self.display_milliseconds, False)
-                self.monitor.waitForAbort(self.display_seconds + 5)
+        if self.scoring_updates_on():
+            img = self.nhl_logo
+            # Get goal scorers head shot if notification is a score update
+            if self.addon.getSetting(id="goal_desc") == 'true' and notify_mode == 'score' and new_item['headshot'] != '':
+                img = new_item['headshot']
+            self.dialog.notification(title, message, img, self.display_milliseconds, False)
+            self.monitor.waitForAbort(self.display_seconds + 5)
 
     def scoring_updates(self):
         todays_date = self.local_to_eastern()
+        todays_date = '2022-04-06'
 
         while self.scoring_updates_on() and not self.monitor.abortRequested():
             json = self.get_scoreboard(todays_date)
@@ -196,7 +208,7 @@ class Scores:
                     if not self.scoring_updates_on():
                         break
                     # Check if all games have finished
-                    if new_item[5].upper().find('FINAL') == -1:
+                    if 'FINAL' in new_item['game_clock'].upper():
                         all_games_finished = 0
 
                     for old_item in self.old_game_stats:
@@ -205,7 +217,7 @@ class Scores:
                             break
                         xbmc.log(str(new_item))
                         xbmc.log(str(old_item))
-                        if new_item[0] == old_item[0]:
+                        if new_item['game_id'] == old_item['game_id']:
                             self.check_if_changed(new_item, old_item)
 
                 # if all games have finished for the night kill the thread
