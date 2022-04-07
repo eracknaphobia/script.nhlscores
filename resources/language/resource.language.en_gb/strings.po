@@ -32,3 +32,14 @@ msgctxt "#30340"
 msgid "Goal Description"
 msgstr ""
 
+msgctxt "#30350"
+msgid "Starting..."
+msgstr ""
+
+msgctxt "#30351"
+msgid "Stopping..."
+msgstr ""
+
+msgctxt "#30352"
+msgid "No games scheduled for today'"
+msgstr ""
