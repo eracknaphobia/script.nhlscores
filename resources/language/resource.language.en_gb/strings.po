@@ -15,8 +15,9 @@ msgstr ""
 "Language: en\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+
 msgctxt "#30300"
-msgid "Score Notification"
+msgid "Score Notifications"
 msgstr ""
 
 msgctxt "#30320"
