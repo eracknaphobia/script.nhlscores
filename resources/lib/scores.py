@@ -29,7 +29,7 @@ class Scores:
         if not self.scoring_updates_on():
             self.addon.setSetting(id='score_updates', value='true')
             self.dialog.notification(self.local_string(30300), self.local_string(30350), self.nhl_logo, self.display_milliseconds, False)
-            self.check_games_scheduled()
+            #self.check_games_scheduled()
             self.scoring_updates()
         else:
             self.addon.setSetting(id='score_updates', value='false')
@@ -168,15 +168,15 @@ class Scores:
                    self.gametime_color, new_item['period'])
         return title, message
 
-    def goal_scored_message(self, new_item):
+    def goal_scored_message(self, new_item, old_item):
         # Highlight score for the team that just scored a goal
         away_score = '%s %s' % (new_item['away_name'], new_item['away_score'])
         home_score = '%s %s' % (new_item['home_name'], new_item['home_score'])
         game_clock = '[COLOR=%s]%s[/COLOR]' % (self.gametime_color, new_item['game_clock'])
 
-        if new_item['away_score'] != new_item['away_score']:
+        if new_item['away_score'] != old_item['away_score']:
             away_score = '[COLOR=%s]%s[/COLOR]' % (self.score_color, away_score)
-        if new_item['home_score'] != new_item['home_score']:
+        if new_item['home_score'] != old_item['home_score']:
             home_score = '[COLOR=%s]%s[/COLOR]' % (self.score_color, home_score)
 
         if self.addon.getSetting(id="goal_desc") == 'false':
@@ -189,24 +189,23 @@ class Scores:
         return title, message
 
     def check_if_changed(self, new_item, old_item):
-        # If the score for either team has changed and is greater than zero.
-        # Or if the game has just ended show the final score
-        # Or the current period has changed
-        # if ((new_item[3] != old_item[8]) or (new_item[4] != old_item[4])) or (new_item[5].upper().find('FINAL') != -1 and old_item[5].upper().find('FINAL') == -1) or (new_item[6] != old_item[6]):
-
+        title = None
+        message = None
         img = self.nhl_logo
+
         if 'final' in new_item['game_clock'].lower():
             title, message = self.final_score_message(new_item)
         elif new_item['period'] != old_item['period']:
             # Notify user that the game has started / period has changed
             title, message = self.period_change_message(new_item)
-        else:
+        elif (new_item['home_score']+1 != old_item['home_score'] and new_item['home_score']+1 > 0) \
+                or (new_item['away_score'] != old_item['away_score'] and new_item['away_score'] > 0):
             # Highlight score for the team that just scored a goal
-            title, message = self.goal_scored_message(new_item)
+            title, message = self.goal_scored_message(new_item, old_item)
             # Get goal scorers head shot if notification is a score update
             if self.addon.getSetting(id="goal_desc") == 'true' and new_item['headshot'] != '': img = new_item['headshot']
 
-        if self.scoring_updates_on():
+        if title is not None and message is not None:
             self.dialog.notification(title, message, img, self.display_milliseconds, False)
             self.monitor.waitForAbort(self.display_seconds + 5)
 
