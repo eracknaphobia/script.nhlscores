@@ -51,7 +51,7 @@ class Scores:
 
     def check_games_scheduled(self):
         # Check if any games are scheduled for today.
-        # If so check if any are live and if not sleep until first game starts
+        # If so, check if any are live and if not sleep until first game starts
         json = self.get_scoreboard()
         if json['totalGames'] == 0:
             self.addon.setSetting(id='score_updates', value='false')
@@ -122,17 +122,17 @@ class Scores:
         # Disable spoiler by not showing score notifications for the game the user is currently watching
         if ateam.lower() not in video_playing and hteam.lower() not in video_playing:
             # Sometimes goal desc are generic, don't alert until more info has been added to the feed
-            if self.addon.getSetting(id="goal_desc") != 'true' or desc.lower() != 'goal':
-                self.new_game_stats.append(
-                    {"game_id": game['gamePk'],
-                     "away_name": game['teams']['away']['team']['abbreviation'],
-                     "home_name": game['teams']['home']['team']['abbreviation'],
-                     "away_score": game['linescore']['teams']['away']['goals'],
-                     "home_score": game['linescore']['teams']['home']['goals'],
-                     "game_clock": game_clock,
-                     "period": current_period,
-                     "goal_desc": desc,
-                     "headshot": headshot})
+            #if self.addon.getSetting(id="goal_desc") != 'true' or desc.lower() != 'goal':
+            self.new_game_stats.append(
+                {"game_id": game['gamePk'],
+                 "away_name": game['teams']['away']['team']['abbreviation'],
+                 "home_name": game['teams']['home']['team']['abbreviation'],
+                 "away_score": game['linescore']['teams']['away']['goals'],
+                 "home_score": game['linescore']['teams']['home']['goals'],
+                 "game_clock": game_clock,
+                 "period": current_period,
+                 "goal_desc": desc,
+                 "headshot": headshot})
 
     def set_display_ms(self):
         display_seconds = int(self.addon.getSetting(id="display_seconds"))
@@ -193,16 +193,16 @@ class Scores:
         message = None
         img = self.nhl_logo
 
-        if 'final' in new_item['game_clock'].lower():
+        if 'final' in new_item['game_clock'].lower() and new_item['game_clock'].lower() != old_item['game_clock'].lower():
             title, message = self.final_score_message(new_item)
         elif new_item['period'] != old_item['period']:
             # Notify user that the game has started / period has changed
             title, message = self.period_change_message(new_item)
-        elif (new_item['home_score']+1 != old_item['home_score'] and new_item['home_score']+1 > 0) \
+        elif (new_item['home_score'] != old_item['home_score'] and new_item['home_score'] > 0) \
                 or (new_item['away_score'] != old_item['away_score'] and new_item['away_score'] > 0):
             # Highlight score for the team that just scored a goal
             title, message = self.goal_scored_message(new_item, old_item)
-            # Get goal scorers head shot if notification is a score update
+            # Get goal scorers headshot if notification is a score update
             if self.addon.getSetting(id="goal_desc") == 'true' and new_item['headshot'] != '': img = new_item['headshot']
 
         if title is not None and message is not None:
