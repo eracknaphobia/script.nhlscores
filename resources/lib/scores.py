@@ -1,7 +1,14 @@
-import xbmc, xbmcvfs, xbmcgui, xbmcaddon
-from datetime import datetime
+import copy
+import os
+import pytz
 import requests
-import os, sys, time, pytz
+import time
+from datetime import datetime
+
+import xbmc
+import xbmcaddon
+import xbmcgui
+import xbmcvfs
 
 
 class Scores:
@@ -16,7 +23,6 @@ class Scores:
         self.headshot_url = 'http://nhl.bamcontent.com/images/headshots/current/60x60/%s@2x.png'
         self.score_color = 'FF00B7EB'
         self.gametime_color = 'FFFFFF66'
-        self.old_game_stats = []
         self.new_game_stats = []
         self.wait = 30
         self.display_seconds = 5
@@ -29,7 +35,7 @@ class Scores:
         if not self.scoring_updates_on():
             self.addon.setSetting(id='score_updates', value='true')
             self.dialog.notification(self.local_string(30300), self.local_string(30350), self.nhl_logo, self.display_milliseconds, False)
-            #self.check_games_scheduled()
+            # self.check_games_scheduled()
             self.scoring_updates()
         else:
             self.addon.setSetting(id='score_updates', value='false')
@@ -117,22 +123,22 @@ class Scores:
 
         game_clock = game['status']['detailedState']
         if 'in progress' in game_clock.lower():
-            game_clock = game['linescore']['currentPeriodTimeRemaining'] + ' ' + game['linescore']['currentPeriodOrdinal']
+            game_clock = '%s %s' % (game['linescore']['currentPeriodTimeRemaining'], game['linescore']['currentPeriodOrdinal'])
 
         # Disable spoiler by not showing score notifications for the game the user is currently watching
         if ateam.lower() not in video_playing and hteam.lower() not in video_playing:
             # Sometimes goal desc are generic, don't alert until more info has been added to the feed
-            #if self.addon.getSetting(id="goal_desc") != 'true' or desc.lower() != 'goal':
-            self.new_game_stats.append(
-                {"game_id": game['gamePk'],
-                 "away_name": game['teams']['away']['team']['abbreviation'],
-                 "home_name": game['teams']['home']['team']['abbreviation'],
-                 "away_score": game['linescore']['teams']['away']['goals'],
-                 "home_score": game['linescore']['teams']['home']['goals'],
-                 "game_clock": game_clock,
-                 "period": current_period,
-                 "goal_desc": desc,
-                 "headshot": headshot})
+            if self.addon.getSetting(id="goal_desc") != 'true' or desc.lower() != 'goal':
+                self.new_game_stats.append(
+                    {"game_id": game['gamePk'],
+                     "away_name": game['teams']['away']['team']['abbreviation'],
+                     "home_name": game['teams']['home']['team']['abbreviation'],
+                     "away_score": game['linescore']['teams']['away']['goals'],
+                     "home_score": game['linescore']['teams']['home']['goals'],
+                     "game_clock": game_clock,
+                     "period": current_period,
+                     "goal_desc": desc,
+                     "headshot": headshot})
 
     def set_display_ms(self):
         display_seconds = int(self.addon.getSetting(id="display_seconds"))
@@ -192,6 +198,8 @@ class Scores:
         title = None
         message = None
         img = self.nhl_logo
+        xbmc.log("-"+str(new_item))
+        xbmc.log("~"+str(old_item))
 
         if 'final' in new_item['game_clock'].lower() and new_item['game_clock'].lower() != old_item['game_clock'].lower():
             title, message = self.final_score_message(new_item)
@@ -211,9 +219,11 @@ class Scores:
 
     def scoring_updates(self):
         first_time_thru = 1
+        old_game_stats = []
         while self.scoring_updates_on() and not self.monitor.abortRequested():
             json = self.get_scoreboard()
             self.new_game_stats.clear()
+            xbmc.log("Games: " + str(len(json['dates'][0]['games'])))
             for game in json['dates'][0]['games']:
                 # Break out of loop if updates disabled
                 if not self.scoring_updates_on(): break
@@ -222,13 +232,16 @@ class Scores:
             if first_time_thru != 1:
                 self.set_display_ms()
                 all_games_finished = 1
+                xbmc.log("new game stats count: " + str(len(self.new_game_stats)))
+                xbmc.log("old game stats count: " + str(len(old_game_stats)))
                 for new_item in self.new_game_stats:
                     if not self.scoring_updates_on(): break
                     # Check if all games have finished
                     if 'final' not in new_item['game_clock'].lower(): all_games_finished = 0
-                    for old_item in self.old_game_stats:
+                    for old_item in old_game_stats:
                         if not self.scoring_updates_on(): break
-                        if new_item['game_id'] == old_item['game_id']: self.check_if_changed(new_item, old_item)
+                        if new_item['game_id'] == old_item['game_id']:
+                            self.check_if_changed(new_item, old_item)
 
                 # if all games have finished for the night stop the script
                 if all_games_finished and self.scoring_updates_on():
@@ -238,7 +251,8 @@ class Scores:
                         title = "Score Notifications"
                         self.dialog.notification(title, 'All games have ended, good night.', self.nhl_logo, 5000, False)
 
-            self.old_game_stats = self.new_game_stats
+            old_game_stats.clear()
+            old_game_stats = copy.deepcopy(self.new_game_stats)
             first_time_thru = 0
             # If kodi exits or goes idle stop running the script
             if self.monitor.waitForAbort(self.wait):
