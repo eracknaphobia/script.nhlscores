@@ -141,7 +141,7 @@ class Scores:
                      "goal_desc": desc,
                      "headshot": headshot})
 
-    def set_display_ms(self):
+    def set_display_time(self):
         self.display_seconds = int(self.addon.getSetting(id="display_seconds"))
         self.display_milliseconds = self.display_seconds * 1000
 
@@ -223,7 +223,7 @@ class Scores:
                 self.get_new_stats(game)
 
             if first_time_thru != 1:
-                self.set_display_ms()
+                self.set_display_time()
                 all_games_finished = 1
                 xbmc.log("new game stats count: " + str(len(self.new_game_stats)))
                 xbmc.log("old game stats count: " + str(len(old_game_stats)))
