@@ -26,7 +26,7 @@ class Scores:
         self.new_game_stats = []
         self.wait = 30
         self.display_seconds = 5
-        self.display_milliseconds = 5000
+        self.display_milliseconds = self.display_seconds * 1000
         self.dialog = xbmcgui.Dialog()
         self.monitor = xbmc.Monitor()
 
@@ -34,13 +34,13 @@ class Scores:
         # Toggle the setting
         if not self.scoring_updates_on():
             self.addon.setSetting(id='score_updates', value='true')
-            self.dialog.notification(self.local_string(30300), self.local_string(30350), self.nhl_logo, self.display_milliseconds, False)
+            self.notify(self.local_string(30300), self.local_string(30350))
             self.check_games_scheduled()
             self.scoring_updates()
             self.addon.setSetting(id='score_updates', value='false')
         else:
             self.addon.setSetting(id='score_updates', value='false')
-            self.dialog.notification(self.local_string(30300), self.local_string(30351), self.nhl_logo, self.display_milliseconds, False)
+            self.notify(self.local_string(30300), self.local_string(30351))
 
     def local_to_pacific(self):
         pacific = pytz.timezone('US/Pacific')
@@ -62,7 +62,7 @@ class Scores:
         json = self.get_scoreboard()
         if json['totalGames'] == 0:
             self.addon.setSetting(id='score_updates', value='false')
-            self.dialog.notification(self.local_string(30300), self.local_string(30352), self.nhl_logo, self.display_milliseconds, False)
+            self.notify(self.local_string(30300), self.local_string(30351))
         else:
             live_games = 0
             for game in json['dates'][0]['games']:
@@ -86,7 +86,7 @@ class Scores:
                     delay_time = "%s minutes" % round((sleep_seconds / 60))
 
                 message = "First game starts in about %s" % delay_time
-                self.dialog.notification(self.local_string(30300), message, self.nhl_logo, self.display_milliseconds, False)
+                self.notify(self.local_string(30300), message)
                 self.monitor.waitForAbort(sleep_seconds)
 
     def get_scoreboard(self):
@@ -142,16 +142,8 @@ class Scores:
                      "headshot": headshot})
 
     def set_display_ms(self):
-        display_seconds = int(self.addon.getSetting(id="display_seconds"))
-        if display_seconds > 60:
-            # Max Seconds 60
-            display_seconds = 60
-        elif display_seconds < 1:
-            # Min Seconds 1
-            display_seconds = 1
-        self.display_seconds = display_seconds
-        # Convert to milliseconds
-        self.display_milliseconds = display_seconds * 1000
+        self.display_seconds = int(self.addon.getSetting(id="display_seconds"))
+        self.display_milliseconds = self.display_seconds * 1000
 
     def final_score_message(self, new_item):
         # Highlight score of the winning team
@@ -215,7 +207,7 @@ class Scores:
             if self.addon.getSetting(id="goal_desc") == 'true' and new_item['headshot'] != '': img = new_item['headshot']
 
         if title is not None and message is not None:
-            self.dialog.notification(title, message, img, self.display_milliseconds, False)
+            self.notify(title, message, img)
             self.monitor.waitForAbort(self.display_seconds + 5)
 
     def scoring_updates(self):
@@ -249,8 +241,7 @@ class Scores:
                     self.addon.setSetting(id='score_updates', value='false')
                     # If the user is watching a game don't display the all games finished message
                     if 'nhl_game_video' not in self.get_video_playing():
-                        title = "Score Notifications"
-                        self.dialog.notification(title, 'All games have ended, good night.', self.nhl_logo, 5000, False)
+                        self.notify(self.local_string(30300), self.local_string(30353), self.nhl_logo)
 
             old_game_stats.clear()
             old_game_stats = copy.deepcopy(self.new_game_stats)
@@ -260,3 +251,6 @@ class Scores:
                 xbmc.log("**************Abort Called**********************")
                 break
 
+    def notify(self, title, msg, img=None):
+        if img is None: img = self.nhl_logo
+        self.dialog.notification(title, msg, img, self.display_milliseconds, False)
