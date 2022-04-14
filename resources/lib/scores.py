@@ -35,8 +35,9 @@ class Scores:
         if not self.scoring_updates_on():
             self.addon.setSetting(id='score_updates', value='true')
             self.dialog.notification(self.local_string(30300), self.local_string(30350), self.nhl_logo, self.display_milliseconds, False)
-            # self.check_games_scheduled()
+            self.check_games_scheduled()
             self.scoring_updates()
+            self.addon.setSetting(id='score_updates', value='false')
         else:
             self.addon.setSetting(id='score_updates', value='false')
             self.dialog.notification(self.local_string(30300), self.local_string(30351), self.nhl_logo, self.display_milliseconds, False)
