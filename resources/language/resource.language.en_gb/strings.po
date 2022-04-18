@@ -40,7 +40,23 @@ msgctxt "#30352"
 msgid "No games scheduled for today"
 msgstr ""
 
+msgctxt "#30355"
+msgid "Final Score"
+msgstr ""
 
-msgctxt "#30353"
+msgctxt "#30358"
+msgid "Game Started"
+msgstr ""
+
+msgctxt "#30360"
 msgid "All games have ended, good night"
 msgstr ""
+
+msgctxt "#30365"
+msgid "Score Update"
+msgstr ""
+
+msgctxt "#30370"
+msgid "Game Update"
+msgstr ""
+

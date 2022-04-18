@@ -66,9 +66,9 @@ class Scores:
         else:
             live_games = 0
             for game in json['dates'][0]['games']:
-                if game['status']['detailedState'].lower() != 'scheduled' \
-                        and game['status']['detailedState'].lower() != 'preview':
+                if game['status']['abstractGameState'].lower() == 'live':
                     live_games += 1
+                    break
 
             if live_games == 0:
                 first_game_start = self.string_to_date(json['dates'][0]['games'][0]['gameDate'], "%Y-%m-%dT%H:%M:%SZ")
@@ -139,7 +139,8 @@ class Scores:
                      "game_clock": game_clock,
                      "period": current_period,
                      "goal_desc": desc,
-                     "headshot": headshot})
+                     "headshot": headshot,
+                     "abstract_state": game['status']['abstractGameState']})
 
     def set_display_time(self):
         self.display_seconds = int(self.addon.getSetting(id="display_seconds"))
@@ -147,7 +148,7 @@ class Scores:
 
     def final_score_message(self, new_item):
         # Highlight score of the winning team
-        title = 'Final Score'
+        title = self.local_string(30355)
         if new_item['away_score'] > new_item['home_score']:
             away_score = '[COLOR=%s]%s %s[/COLOR]' % (self.score_color, new_item['away_name'], new_item['away_score'])
             home_score = '%s %s' % (new_item['home_name'], new_item['home_score'])
@@ -159,9 +160,14 @@ class Scores:
         message = '%s    %s    %s' % (away_score, home_score, game_clock)
         return title, message
 
+    def game_started_message(self, new_item):
+        title = self.local_string(30358)
+        message = '%s vs %s' % (new_item['away_name'], new_item['home_name'])
+        return title, message
+
     def period_change_message(self, new_item):
         # Notify user that the game has started / period has changed
-        title = "Game Update"
+        title = self.local_string(30370)
         message = '%s %s    %s %s   [COLOR=%s]%s has started[/COLOR]' % \
                   (new_item['away_name'], new_item['away_score'], new_item['home_name'], new_item['home_score'],
                    self.gametime_color, new_item['period'])
@@ -179,7 +185,7 @@ class Scores:
             home_score = '[COLOR=%s]%s[/COLOR]' % (self.score_color, home_score)
 
         if self.addon.getSetting(id="goal_desc") == 'false':
-            title = 'Score Update'
+            title = self.local_string(30365)
             message = '%s    %s    %s' % (away_score, home_score, game_clock)
         else:
             title = '%s    %s    %s' % (away_score, home_score, game_clock)
@@ -194,8 +200,10 @@ class Scores:
         xbmc.log("-"+str(new_item))
         xbmc.log("~"+str(old_item))
 
-        if 'final' in new_item['game_clock'].lower() and new_item['game_clock'].lower() != old_item['game_clock'].lower():
+        if 'final' in new_item['abstract_state'].lower() and 'final' not in old_item['abstract_state'].lower():
             title, message = self.final_score_message(new_item)
+        elif 'live' in new_item['abstract_state'].lower() and 'live' not in old_item['abstract_state'].lower():
+            title, message = self.game_started_message(new_item)
         elif new_item['period'] != old_item['period']:
             # Notify user that the game has started / period has changed
             title, message = self.period_change_message(new_item)
@@ -230,7 +238,7 @@ class Scores:
                 for new_item in self.new_game_stats:
                     if not self.scoring_updates_on(): break
                     # Check if all games have finished
-                    if 'final' not in new_item['game_clock'].lower(): all_games_finished = 0
+                    if 'final' not in new_item['abstract_state'].lower(): all_games_finished = 0
                     for old_item in old_game_stats:
                         if not self.scoring_updates_on(): break
                         if new_item['game_id'] == old_item['game_id']:
@@ -241,7 +249,7 @@ class Scores:
                     self.addon.setSetting(id='score_updates', value='false')
                     # If the user is watching a game don't display the all games finished message
                     if 'nhl_game_video' not in self.get_video_playing():
-                        self.notify(self.local_string(30300), self.local_string(30353), self.nhl_logo)
+                        self.notify(self.local_string(30300), self.local_string(30360), self.nhl_logo)
 
             old_game_stats.clear()
             old_game_stats = copy.deepcopy(self.new_game_stats)
