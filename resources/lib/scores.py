@@ -29,13 +29,14 @@ class Scores:
         self.display_milliseconds = self.display_seconds * 1000
         self.dialog = xbmcgui.Dialog()
         self.monitor = xbmc.Monitor()
+        self.test = False
 
     def toggle_script(self):
         # Toggle the setting
         if not self.scoring_updates_on():
             self.addon.setSetting(id='score_updates', value='true')
             self.notify(self.local_string(30300), self.local_string(30350))
-            self.check_games_scheduled()
+            if not self.test: self.check_games_scheduled()
             self.scoring_updates()
             self.addon.setSetting(id='score_updates', value='false')
         else:
@@ -90,7 +91,11 @@ class Scores:
                 self.monitor.waitForAbort(sleep_seconds)
 
     def get_scoreboard(self):
-        url = self.api_url % self.local_to_pacific()
+        if self.test:
+            url = self.api_url % '2022-4-18'
+        else:
+            url = self.api_url % self.local_to_pacific()
+
         headers = {'User-Agent': self.ua_ipad}
         r = requests.get(url, headers=headers)
         return r.json()
@@ -218,6 +223,27 @@ class Scores:
             self.notify(title, message, img)
             self.monitor.waitForAbort(self.display_seconds + 5)
 
+    def testing(self, new_item):
+            img = self.nhl_logo
+
+            title, message = self.final_score_message(new_item)
+            self.notify(title, message, img)
+            self.monitor.waitForAbort(self.display_seconds + 5)
+
+            title, message = self.game_started_message(new_item)
+            self.notify(title, message, img)
+            self.monitor.waitForAbort(self.display_seconds + 5)
+
+            title, message = self.period_change_message(new_item)
+            self.notify(title, message, img)
+            self.monitor.waitForAbort(self.display_seconds + 5)
+
+            title, message = self.goal_scored_message(new_item, new_item)
+            # Get goal scorers headshot if notification is a score update
+            if self.addon.getSetting(id="goal_desc") == 'true' and new_item['headshot'] != '': img = new_item['headshot']
+            self.notify(title, message, img)
+            self.monitor.waitForAbort(self.display_seconds + 5)
+
     def scoring_updates(self):
         first_time_thru = 1
         old_game_stats = []
@@ -243,6 +269,9 @@ class Scores:
                         if not self.scoring_updates_on(): break
                         if new_item['game_id'] == old_item['game_id']:
                             self.check_if_changed(new_item, old_item)
+
+                if self.test:
+                    self.testing(new_item)
 
                 # if all games have finished for the night stop the script
                 if all_games_finished and self.scoring_updates_on():
