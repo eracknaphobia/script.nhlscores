@@ -12,6 +12,8 @@
     <extension point="xbmc.addon.metadata">
         <platform>all</platform>
         <summary lang="en_GB">Get live NHL score notifications</summary>
+        <description lang="en_GB">Live scoring and game updates via kodi notifications
+        </description>
         <news>
             - Initial Release
         </news>
