@@ -39,8 +39,7 @@ class Scores:
         self.dialog = xbmcgui.Dialog()
         self.monitor = xbmc.Monitor()
         self.test = False
-        self.daily_check_timer = 600
-        self.daily_check = False
+        self.daily_check_timer = 1500 #25 minutes
 
     def service(self):
         first_run = True
@@ -48,21 +47,18 @@ class Scores:
 
         while not self.monitor.abortRequested():
             daily_check_time = is_between(datetime.datetime.now().time(), datetime.time(3), datetime.time(4))
-            xbmc.log(f"[script.nhlscores] between: {daily_check_time}")
+            running = self.addon.getSettingBool(id='score_updates')
+            xbmc.log(f"[script.nhlscores][{datetime.datetime.now()}] first_run: {first_run}, daily_check_time: {daily_check_time}, between: {daily_check_time}, running: {running}")
 
-            if first_run or (daily_check_time and not self.daily_check):
-                xbmc.log(f"[script.nhlscores] first_run: {first_run}, daily_check_time: {daily_check_time}, daily_check: {self.daily_check}")
-
+            if first_run or (daily_check_time and not running):
+                xbmc.log(f"[script.nhlscores][{datetime.datetime.now()}] Toggle ON")
                 self.addon.setSetting(id='score_updates', value='true')
                 self.notify(self.local_string(30300), self.local_string(30350))
                 if not self.test: self.check_games_scheduled()
                 self.scoring_updates()
                 self.addon.setSetting(id='score_updates', value='false')
 
-                self.daily_check = True
                 first_run = False
-            else:
-                xbmc.log(f"[script.nhlscores] No run")
 
             self.monitor.waitForAbort(self.daily_check_timer)
 
@@ -300,7 +296,7 @@ class Scores:
                 # if all games have finished for the night stop the script
                 if all_games_finished and self.scoring_updates_on():
                     self.addon.setSetting(id='score_updates', value='false')
-                    self.daily_check = False
+                    xbmc.log(f"[script.nhlscores] End of day")
                     # If the user is watching a game don't display the all games finished message
                     if 'nhl_game_video' not in self.get_video_playing():
                         self.notify(self.local_string(30300), self.local_string(30360), self.nhl_logo)
