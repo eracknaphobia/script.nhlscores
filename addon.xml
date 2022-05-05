@@ -12,7 +12,7 @@
         <description lang="en_GB">Live scoring and game updates via kodi notifications
         </description>
         <news>
-            - Initial Release
+            - Run as service
         </news>
         <language>en</language>
         <platform>all</platform>
