@@ -296,7 +296,7 @@ class Scores:
                 # if all games have finished for the night stop the script
                 if all_games_finished and self.scoring_updates_on():
                     self.addon.setSetting(id='score_updates', value='false')
-                    xbmc.log(f"[script.nhlscores] End of day")
+                    xbmc.log("[script.nhlscores] End of day")
                     # If the user is watching a game don't display the all games finished message
                     if 'nhl_game_video' not in self.get_video_playing():
                         self.notify(self.local_string(30300), self.local_string(30360), self.nhl_logo)
