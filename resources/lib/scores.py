@@ -38,7 +38,7 @@ class Scores:
         self.display_milliseconds = self.display_seconds * 1000
         self.dialog = xbmcgui.Dialog()
         self.monitor = xbmc.Monitor()
-        self.test = True
+        self.test = False
         self.daily_check_timer = 1500 #25 minutes
 
     def service(self):
@@ -85,7 +85,7 @@ class Scores:
                     break
 
             if live_games == 0:
-                first_game_start = self.string_to_date(json['startTimeUTC'], "%Y-%m-%dT%H:%M:%SZ")
+                first_game_start = self.string_to_date(json['games'][0]['startTimeUTC'], "%Y-%m-%dT%H:%M:%SZ")
                 sleep_seconds = int((first_game_start - datetime.datetime.utcnow()).total_seconds())
                 if sleep_seconds >= 6600:
                     # hour and 50 minutes or more just display hours
@@ -104,11 +104,6 @@ class Scores:
                 self.monitor.waitForAbort(sleep_seconds)
 
     def get_scoreboard(self):
-        # if self.test:
-        #     url = self.api_url % '2022-4-18'
-        # else:
-        #     url = self.api_url % self.local_to_pacific()
-
         headers = {'User-Agent': self.ua_ipad}
         r = requests.get(self.api_url, headers=headers)
         return r.json()
@@ -122,7 +117,6 @@ class Scores:
         return video_playing
 
     def get_new_stats(self, game):
-        video_playing = self.get_video_playing()
         ateam = game['awayTeam']
         hteam = game['homeTeam']
         current_period = f"{game['periodDescriptor']['number']} {game['periodDescriptor']['periodType']}" if 'periodDescriptor' in game else ''
@@ -135,10 +129,6 @@ class Scores:
             desc = f"{last_goal['name']['default']} ({last_goal['goalsToDate']})"
             headshot = last_goal['mugshot']
 
-        # Disable spoiler by not showing score notifications for the game the user is currently watching
-        #if ateam.lower() not in video_playing and hteam.lower() not in video_playing:
-        # Sometimes goal desc are generic, don't alert until more info has been added to the feed
-        #if self.addon.getSetting(id="goal_desc") != 'true' or desc.lower() != 'goal':
         self.new_game_stats.append(
             {"game_id": game['id'],
              "away_name": ateam['abbrev'],
