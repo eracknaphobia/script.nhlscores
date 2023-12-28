@@ -12,7 +12,7 @@
         <description lang="en_GB">Live scoring and game updates via kodi notifications
         </description>
         <news>
-            - Update to f-strings
+            - Fixed for upstream api changes
         </news>
         <language>en</language>
         <platform>all</platform>
