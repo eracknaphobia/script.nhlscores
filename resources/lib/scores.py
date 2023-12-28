@@ -20,6 +20,19 @@ def is_between(now, start, end):
     return is_between
 
 
+def convert_to_nhl_periods(period):
+    if period == 1:
+        return "1st"
+    elif period == 2:
+        return "2nd"
+    elif period == 3:
+        return "3rd"
+    elif period > 3:
+        # For overtime periods
+        return f"{period - 3} OT"
+    else:
+        return "Invalid period"
+
 class Scores:
 
     def __init__(self):
@@ -33,6 +46,7 @@ class Scores:
         self.score_color = 'FF00B7EB'
         self.gametime_color = 'FFFFFF66'
         self.new_game_stats = []
+        self.old_game_stats = []
         self.wait = 30
         self.display_seconds = 5
         self.display_milliseconds = self.display_seconds * 1000
@@ -116,11 +130,11 @@ class Scores:
         if xbmc.Player().isPlayingVideo(): video_playing = xbmc.Player().getPlayingFile().lower()
         return video_playing
 
-    def get_new_stats(self, game):
+    def get_new_stats(self, game, old_game_stats):
         ateam = game['awayTeam']
         hteam = game['homeTeam']
-        current_period = f"{game['periodDescriptor']['number']} {game['periodDescriptor']['periodType']}" if 'periodDescriptor' in game else ''
-        game_clock = f"{game['clock']['timeRemaining']} {current_period}" if 'clock' in game else ''
+        current_period = convert_to_nhl_periods(game['periodDescriptor']['number']) if 'periodDescriptor' in game else ''
+        game_clock = f"{current_period} {game['clock']['timeRemaining']}" if 'clock' in game else ''
 
         desc = ''
         headshot = ''
@@ -129,17 +143,26 @@ class Scores:
             desc = f"{last_goal['name']['default']} ({last_goal['goalsToDate']})"
             headshot = last_goal['mugshot']
 
-        self.new_game_stats.append(
-            {"game_id": game['id'],
-             "away_name": ateam['abbrev'],
-             "home_name": hteam['abbrev'],
-             "away_score": ateam['score'] if 'score' in ateam else '',
-             "home_score": hteam['score'] if 'score' in hteam else '',
-             "game_clock": game_clock,
-             "period": current_period,
-             "goal_desc": desc,
-             "headshot": headshot,
-             "abstract_state": game['gameState']})
+        # If home score and away score is more than the length of the goals array
+        # Don't store the new value, use the old one until the description is filled
+        if 'goals' in game and len(game['goals']) > 0 and (ateam['score'] + hteam['score'] > len(game['goals'])):
+            for old_item in old_game_stats:
+                if not self.scoring_updates_on(): break
+                if game['game_id'] == old_item['game_id']:
+                    self.new_game_stats.append(old_item)
+
+        else:
+            self.new_game_stats.append(
+                {"game_id": game['id'],
+                 "away_name": ateam['abbrev'],
+                 "home_name": hteam['abbrev'],
+                 "away_score": ateam['score'] if 'score' in ateam else '',
+                 "home_score": hteam['score'] if 'score' in hteam else '',
+                 "game_clock": game_clock,
+                 "period": current_period,
+                 "goal_desc": desc,
+                 "headshot": headshot,
+                 "abstract_state": game['gameState']})
 
     def set_display_time(self):
         self.display_seconds = int(self.addon.getSetting(id="display_seconds"))
@@ -156,12 +179,12 @@ class Scores:
             home_score = f"[COLOR={self.score_color}]{new_item['home_name']} {new_item['home_score']}[/COLOR]"
 
         game_clock = f"[COLOR={self.gametime_color}]{new_item['game_clock']}[/COLOR]"
-        message = f"{away_score}    {home_score}    {game_clock}"
+        message = f"{away_score}  {home_score}  {game_clock}"
         return title, message
 
     def game_started_message(self, new_item):
         title = self.local_string(30358)
-        message = f"{new_item['away_name']} vs {new_item['home_name']}"
+        message = f"{new_item['away_name']} @ {new_item['home_name']}"
         return title, message
 
     def period_change_message(self, new_item):
@@ -186,9 +209,9 @@ class Scores:
 
         if self.addon.getSetting(id="goal_desc") == 'false':
             title = self.local_string(30365)
-            message = f"{away_score}    {home_score}    {game_clock}"
+            message = f"{away_score}  {home_score}  {game_clock}"
         else:
-            title = f"{away_score}    {home_score}    {game_clock}"
+            title = f"{away_score}  {home_score}  {game_clock}"
             message = new_item['goal_desc']
 
         return title, message
@@ -249,7 +272,7 @@ class Scores:
             for game in json['games']:
                 # Break out of loop if updates disabled
                 if not self.scoring_updates_on(): break
-                self.get_new_stats(game)
+                self.get_new_stats(game, old_game_stats)
 
             if first_time_thru != 1:
                 self.set_display_time()
