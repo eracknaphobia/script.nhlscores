@@ -46,7 +46,6 @@ class Scores:
         self.score_color = 'FF00B7EB'
         self.gametime_color = 'FFFFFF66'
         self.new_game_stats = []
-        self.old_game_stats = []
         self.wait = 30
         self.display_seconds = 5
         self.display_milliseconds = self.display_seconds * 1000
